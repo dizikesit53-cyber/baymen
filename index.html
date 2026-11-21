@@ -134,7 +134,7 @@
 
   <footer>
     <p id="footInfo"></p>
-    <p style="margin-top:8px"><button id="adminBtn">Yönetici girişi</button></p>
+    <p style="margin-top:8px"><button id="iptalBtn">Randevumu iptal et</button> · <button id="adminBtn">Yönetici girişi</button></p>
   </footer>
 </div>
 
@@ -241,6 +241,7 @@ document.addEventListener('click', async e=>{
   else if(b.dataset.s){ S.saat=b.dataset.s; formKaydet(); ciz(); setTimeout(()=>$('#formCard').scrollIntoView({behavior:'smooth',block:'start'}),50); }
   else if(b.id==='yeni'){ Object.assign(S,{hizmet:null,tarih:null,saat:null,dolu:[]}); A = await api('ayarlariGetir'); ciz(); scrollTo({top:0,behavior:'smooth'}); }
   else if(b.id==='adminBtn'){ adminAc(); }
+  else if(b.id==='iptalBtn'){ iptalAc(); }
 });
 
 function formKaydet(){
@@ -281,7 +282,7 @@ function alertTop(m){
 function basarili(r){
   S.ad=''; S.tel=''; S.not='';
   $('#app').innerHTML = '<div class="card done"><div class="ok">✓</div><h2>Randevunuz alındı</h2>'+
-    '<p class="hint">Randevu kodunuz</p><div class="code">'+esc(r.id)+'</div>'+
+    '<p class="hint">Randevu kodunuz (iptal için saklayın)</p><div class="code">'+esc(r.id)+'</div>'+
     '<dl class="summary"><dt>İsim</dt><dd>'+esc(r.ad)+'</dd><dt>Hizmet</dt><dd>'+esc(r.hizmet)+'</dd><dt>Tarih</dt><dd>'+uzunTarih(r.tarih)+'</dd><dt>Saat</dt><dd>'+r.saat+'</dd></dl>'+
     '<p class="hint" style="margin-bottom:18px">Lütfen randevu saatinizden birkaç dakika önce dükkanda olun. Bu ekranın görüntüsünü alabilirsiniz.</p>'+
     '<button class="btn ghost" id="yeni">Yeni randevu al</button></div>';
@@ -328,6 +329,29 @@ async function adminYukle(){
     await adminYukle();
     if(S.tarih) saatleriYukle();
   });
+}
+
+/* ============ müşteri iptali ============ */
+function iptalAc(){
+  modal('<div class="panel-head"><h3>Randevu iptali</h3><button class="x">×</button></div>'+
+    '<p class="hint" style="margin-bottom:12px">Randevu alırken verilen kodu ve telefon numaranızı yazın.</p>'+
+    '<form id="mif"><div class="field"><label for="mk">Randevu kodu</label><input id="mk" autocomplete="off" autocapitalize="characters" placeholder="Örn: BMQL2JII" maxlength="12"></div>'+
+    '<div class="field"><label for="mt">Telefon</label><input id="mt" type="tel" inputmode="tel" placeholder="05XX XXX XX XX" maxlength="16"></div>'+
+    '<button class="btn" type="submit" id="mib">Randevuyu iptal et</button><p class="err" id="mie"></p></form>'+
+    (A && A.telefon ? '<p class="hint" style="margin-top:12px">Kodunuzu bulamıyorsanız bizi arayın: '+esc(A.telefon)+'</p>' : ''));
+  $('#mif').onsubmit = async e=>{
+    e.preventDefault();
+    const btn=$('#mib'), er=$('#mie'); er.textContent='';
+    if(btn.dataset.onay!=='1'){ btn.dataset.onay='1'; btn.textContent='Emin misiniz? Tekrar dokunun'; return; }
+    btn.disabled=true; btn.textContent='İptal ediliyor…';
+    let r;
+    try{ r = await api('musteriIptal', $('#mk').value, $('#mt').value); }catch(x){ r={ok:false,mesaj:'Bağlantı hatası, tekrar deneyin.'}; }
+    if(!r.ok){ er.textContent=r.mesaj; btn.disabled=false; btn.dataset.onay=''; btn.textContent='Randevuyu iptal et'; return; }
+    modal('<div class="panel-head"><h3>Randevu iptali</h3><button class="x">×</button></div>'+
+      '<div class="done" style="padding:10px 0"><div class="ok">✓</div><h2 style="font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:1px">İptal edildi</h2>'+
+      '<p class="hint" style="margin-top:8px">'+esc(r.ad)+' · '+esc(r.hizmet)+'<br>'+uzunTarih(r.tarih)+' · '+esc(r.saat)+'</p></div>');
+    if(S.tarih===r.tarih) saatleriYukle();
+  };
 }
 
 /* ============ saat kapatma ============ */
