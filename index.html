@@ -110,6 +110,16 @@
   .appt.iptal .t{text-decoration:line-through}
   .cancel{font-size:12px;padding:6px 10px;border:1px solid #5a3a32;border-radius:8px;color:#f09a86}
   .cancel:hover{background:#3a221c}
+  .tabs{display:flex;gap:6px;margin-bottom:14px;background:var(--card2);padding:4px;border-radius:11px}
+  .tabs button{flex:1;padding:9px;border-radius:8px;font-weight:600;font-size:14px;color:var(--muted)}
+  .tabs button.on{background:var(--gold);color:#111}
+  .kslots button{display:flex;flex-direction:column;align-items:center;line-height:1.2}
+  .kslots button small{font-size:10px;font-weight:500;margin-top:2px}
+  .kslots button.kapali{background:#3a221c;border-color:#c8553d;color:#f09a86}
+  .kslots button:disabled{color:#7d766c;border-style:solid;text-decoration:none;background:#1d2a20;border-color:#3d5a43;cursor:not-allowed}
+  .kbtns{display:flex;gap:8px;margin-top:14px}
+  .kbtns button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--line);font-weight:600;font-size:13px}
+  .kbtns .kap{border-color:#5a3a32;color:#f09a86}
 </style>
 </head>
 <body>
@@ -298,7 +308,7 @@ async function adminYukle(){
   if(!r.ok){ if($('#aerr')) $('#aerr').textContent=r.mesaj; else adminAc(); return; }
   const aktif = r.liste.filter(x=>x.durum!=='İptal');
   const bugunSay = aktif.filter(x=>x.tarih===r.bugun).length;
-  let h = '<div class="panel-head"><h3>Randevular</h3><div><button class="cancel" style="border-color:var(--line);color:var(--text);margin-right:8px" id="yenile">Yenile</button><button class="x">×</button></div></div>'+
+  let h = adminBas('r') + '<div style="text-align:right;margin:-6px 0 10px"><button class="cancel" style="border-color:var(--line);color:var(--text)" id="yenile">Yenile</button></div>'+
     '<div class="stats"><div><b>'+bugunSay+'</b><span>Bugün</span></div><div><b>'+aktif.length+'</b><span>Yaklaşan toplam</span></div></div>';
   if(!r.liste.length) h += '<p class="hint">Yaklaşan randevu yok.</p>';
   let son='';
@@ -319,6 +329,65 @@ async function adminYukle(){
     if(S.tarih) saatleriYukle();
   });
 }
+
+/* ============ saat kapatma ============ */
+function adminBas(sekme){
+  return '<div class="panel-head"><h3>Yönetim</h3><button class="x">×</button></div>'+
+    '<div class="tabs"><button data-sekme="r" class="'+(sekme==='r'?'on':'')+'">Randevular</button><button data-sekme="k" class="'+(sekme==='k'?'on':'')+'">Saat Kapat</button></div>';
+}
+
+let KG = null;
+async function kapatYukle(t){
+  if(t) KG = t;
+  if(!KG){ const g = gunler().find(x=>!x.kapali); KG = g ? g.t : A.bugun; }
+  modal(adminBas('k') + '<div class="loading"><div class="spin"></div></div>');
+  let r;
+  try{ r = await api('adminGun', SIFRE, KG); }catch(e){ r = {ok:false, mesaj:'Bağlantı hatası.'}; }
+  if(!r.ok){ modal(adminBas('k') + '<p class="err">'+esc(r.mesaj)+'</p>'); return; }
+  kapatCiz(r);
+}
+
+function kapatCiz(r){
+  const bugunMu = KG===A.bugun;
+  let h = adminBas('k') +
+    '<p class="hint" style="margin-bottom:12px">Gün seç, kapatmak istediğin saate dokun. Kapalı saatlerden müşteri randevu alamaz. Tekrar dokununca açılır.</p>'+
+    '<div class="days">'+gunler().map(g=>'<button data-kg="'+g.t+'" '+(g.kapali?'disabled':'')+' class="'+(KG===g.t?'sel':'')+'"><span>'+(g.i===0?'Bugün':g.i===1?'Yarın':GUNK[g.gun])+'</span><b>'+g.no+'</b><span>'+AY[parse(g.t).getUTCMonth()].slice(0,3)+'</span></button>').join('')+'</div>'+
+    '<div class="dayhead">'+uzunTarih(KG)+'</div>'+
+    '<div class="slots kslots">'+r.slotlar.map(s=>{
+      const rv = r.randevulu.includes(s), k = r.kapali.includes(s);
+      const gecti = bugunMu && dk(s) <= dk(A.simdi);
+      return '<button data-ks="'+s+'" data-k="'+(k?1:0)+'" class="'+(k?'kapali':'')+'" '+(rv||gecti?'disabled':'')+'>'+s+
+        '<small>'+(rv?'randevu var':k?'kapalı':gecti?'geçti':'açık')+'</small></button>';
+    }).join('')+'</div>'+
+    '<div class="kbtns"><button class="kap" id="gunKapat">Tüm günü kapat</button><button id="gunAc">Tüm günü aç</button></div>'+
+    '<p class="err" id="kerr"></p>';
+  modal(h);
+}
+
+async function kapatDegistir(saatler, kapat){
+  document.querySelectorAll('.kslots button,.kbtns button').forEach(b=>b.disabled=true);
+  let r;
+  try{ r = await api('adminKapat', SIFRE, KG, saatler, kapat); }catch(e){ r = {ok:false, mesaj:'Bağlantı hatası, tekrar dene.'}; }
+  if(!r.ok){ await kapatYukle(); const e=$('#kerr'); if(e) e.textContent=r.mesaj; return; }
+  kapatCiz(r);
+  if(S.tarih===KG) saatleriYukle();
+}
+
+$('#panel').addEventListener('click', async e=>{
+  const b = e.target.closest('button'); if(!b || b.disabled) return;
+  if(b.dataset.sekme==='r'){ adminYukle(); }
+  else if(b.dataset.sekme==='k'){ kapatYukle(); }
+  else if(b.dataset.kg){ kapatYukle(b.dataset.kg); }
+  else if(b.dataset.ks){ kapatDegistir([b.dataset.ks], b.dataset.k!=='1'); }
+  else if(b.id==='gunKapat'){
+    const acik = [...document.querySelectorAll('.kslots button')].filter(x=>!x.disabled && x.dataset.k!=='1').map(x=>x.dataset.ks);
+    if(acik.length) kapatDegistir(acik, true);
+  }
+  else if(b.id==='gunAc'){
+    const kapali = [...document.querySelectorAll('.kslots button')].filter(x=>x.dataset.k==='1').map(x=>x.dataset.ks);
+    if(kapali.length) kapatDegistir(kapali, false);
+  }
+});
 
 basla();
 </script>
