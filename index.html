@@ -145,7 +145,8 @@
 <script>
 /* ============ API (Google Apps Script) ============ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbxvup8TxagfniYbhLOKsrtzqD5QVyeUU-pHo7SpyvLxgWR84eMWzcRnTg-cKVJIgxDQsg/exec';
-const YAZMA = ['randevuAl','adminIptal'];
+const YAZMA = ['randevuAl','adminIptal','adminKapat','musteriIptal'];
+const WA_NO = '905319307041';
 
 async function api(fn, ...args){
   const url = API_URL + '?fn=' + encodeURIComponent(fn) + '&args=' + encodeURIComponent(JSON.stringify(args)) + '&_=' + Date.now();
@@ -285,6 +286,7 @@ function basarili(r){
     '<p class="hint">Randevu kodunuz (iptal için saklayın)</p><div class="code">'+esc(r.id)+'</div>'+
     '<dl class="summary"><dt>İsim</dt><dd>'+esc(r.ad)+'</dd><dt>Hizmet</dt><dd>'+esc(r.hizmet)+'</dd><dt>Tarih</dt><dd>'+uzunTarih(r.tarih)+'</dd><dt>Saat</dt><dd>'+r.saat+'</dd></dl>'+
     '<p class="hint" style="margin-bottom:18px">Lütfen randevu saatinizden birkaç dakika önce dükkanda olun. Bu ekranın görüntüsünü alabilirsiniz.</p>'+
+    '<a class="btn" style="display:block;text-align:center;text-decoration:none;background:#25d366;color:#fff;margin-bottom:10px" target="_blank" rel="noopener" href="https://wa.me/'+WA_NO+'?text='+encodeURIComponent('Merhaba, '+uzunTarih(r.tarih)+' saat '+r.saat+' için '+r.hizmet+' randevusu aldım. İsim: '+r.ad+' · Kod: '+r.id)+'">WhatsApp\'tan haber ver</a>'+
     '<button class="btn ghost" id="yeni">Yeni randevu al</button></div>';
   scrollTo({top:0,behavior:'smooth'});
 }
@@ -317,7 +319,7 @@ async function adminYukle(){
     if(x.tarih!==son){ son=x.tarih; h+='<div class="dayhead">'+(x.tarih===r.bugun?'Bugün · ':'')+uzunTarih(x.tarih)+'</div>'; }
     const ip = x.durum==='İptal';
     h += '<div class="appt '+(ip?'iptal':'')+'"><div class="t">'+esc(x.saat)+'</div><div><div class="n">'+esc(x.ad)+'</div>'+
-      '<div class="s">'+esc(x.hizmet)+' · <a href="tel:'+esc(x.telefon)+'">'+esc(x.telefon)+'</a>'+(x.not?' · '+esc(x.not):'')+'</div></div>'+
+      '<div class="s">'+esc(x.hizmet)+' · <a href="tel:'+esc(x.telefon)+'">'+esc(x.telefon)+'</a> · <a target="_blank" rel="noopener" href="https://wa.me/90'+esc(String(x.telefon).replace(/\D/g,'').slice(-10))+'">WhatsApp</a>'+(x.not?' · '+esc(x.not):'')+'</div></div>'+
       (ip?'<span class="s">İptal</span>':'<button class="cancel" data-iptal="'+esc(x.id)+'">İptal et</button>')+'</div>';
   });
   modal(h);
